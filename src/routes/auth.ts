@@ -8,6 +8,7 @@ import AuthenticationError from "../errors/AuthenticationError";
 import ValidationError from "../errors/ValidationError";
 import jwt from "jsonwebtoken";
 import config from "../config";
+import auth from '../middleware/auth';
 
 class Signup extends BaseRoute {
 	private schema = Joi.object({
@@ -29,8 +30,8 @@ class Signup extends BaseRoute {
 		}).unknown(true),
 	}).unknown(true);
 
-	validate(req: Request): Joi.ValidationResult {
-		return this.schema.validate(req);
+	validate(req: Request) {
+		return { validation: this.schema.validate(req) };
 	}
 
 	async controller(req: Request) {
@@ -44,8 +45,8 @@ class Signup extends BaseRoute {
 		});
 		if (existingUser) {
 			const taken = {
-				email: email == existingUser.email ? 'email is already taken' : undefined,
-				userName: userName === existingUser.userName ? 'userName is already taken' : undefined,
+				email: email == existingUser.email ? "email is already taken" : undefined,
+				userName: userName === existingUser.userName ? "userName is already taken" : undefined,
 			};
 			throw new ConflictError(taken, { email, userName });
 		}
@@ -64,33 +65,32 @@ class Login extends BaseRoute {
 				.min(3)
 				.max(30)
 				.error((errs) => {
-					errs[0].message = 'invalid userName';
+					errs[0].message = "invalid userName";
 					return errs[0];
 				}),
 			email: Joi.string()
 				.trim()
 				.email({ minDomainSegments: 2, tlds: { allow: true } })
 				.error((errs) => {
-					errs[0].message = 'invalid email';
+					errs[0].message = "invalid email";
 					return errs[0];
 				}),
 			password: Joi.string()
 				.min(6)
-				.pattern(new RegExp('^[a-zA-Z0-9]{3,30}$'))
+				.pattern(new RegExp("^[a-zA-Z0-9]{3,30}$"))
 				.required()
 				.error((errs) => {
-					errs[0].message = 'invalid password';
+					errs[0].message = "invalid password";
 					return errs[0];
 				}),
 		}).required().unknown(true),
 	}).unknown(true);
 
 	validate(req: Request) {
-		return this.schema.validate(req);
+		return { validation: this.schema.validate(req) };
 	}
 
 	async controller(req: Request) {
-		console.log(req.body);
 		const { userName, email, password } = req.body;
 		if (!userName && !email) {
 			throw new ValidationError(['both userName and password are missing']);
@@ -103,13 +103,24 @@ class Login extends BaseRoute {
 			throw new AuthenticationError({ userName, email });
 		}
 		const token = jwt.sign({ userId: user.id }, config().app.jwtSecret);
-		return { cookies: { s_token: { value: token, expires: 24 * 3600 } }, data: user };
+		return { cookies: { s_token: { value: token, expires: 24 * 3600 } }, data: { user } };
 	}
 }
 
-const router = Router();
+class Logout extends BaseRoute {
+	validate(_: Request) {
+		return {};
+	}
 
-router.post('/signup', BaseRoute.route(Signup));
-router.post('/login', BaseRoute.route(Login));
+	async controller(_: Request) {
+		return { cookies: { s_token: { value: '', expiry: 0 } } };
+	}
+}
 
-export default router;
+export default () => {
+	const router = Router();
+	router.post('/signup', BaseRoute.route(Signup));
+	router.post('/login', BaseRoute.route(Login));
+	router.post('/logout', auth, BaseRoute.route(Logout));
+	return router;
+};
