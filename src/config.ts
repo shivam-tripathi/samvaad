@@ -3,7 +3,7 @@ class Config {
 	app: {
 		port: number;
 		jwtSecret: string;
-	}
+	};
 
 	constructor() {
 		this.env = process.env.NODE_ENV;
@@ -14,7 +14,7 @@ class Config {
 	}
 
 	isProduction() {
-		return this.env === 'production';
+		return this.env === 'prod';
 	}
 }
 
