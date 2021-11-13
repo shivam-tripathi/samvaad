@@ -1,8 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, BaseEntity, Index, CreateDateColumn, UpdateDateColumn, BeforeInsert } from "typeorm";
 import bcrypt from "bcrypt";
-import { classToPlain, Exclude } from "class-transformer";
+import { Exclude } from "class-transformer";
+import AbstractEntity from "./AbstractEntity";
+
 @Entity("users")
-export class User extends BaseEntity {
+export class User extends AbstractEntity {
   constructor(user: Partial<User>) {
     super();
     Object.assign(this, user);
@@ -35,18 +37,8 @@ export class User extends BaseEntity {
   @Column({ default: false })
   deleted: boolean;
 
-  @CreateDateColumn({ name: "created_at " })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: "updated_at " })
-  updatedAt: Date;
-
   @BeforeInsert()
   async beforeInsert() {
     this.password = await bcrypt.hash(this.password, 6);
-  }
-
-  toJSON() {
-    return classToPlain(this);
   }
 }
